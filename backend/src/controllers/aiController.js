@@ -1,5 +1,5 @@
 // backend/src/controllers/aiController.js
-const model = require('../config/gemini');
+import model from '../config/gemini.js';
 
 const cleanJSON = (text) => {
   return text.replace(/```json|```/g, '').trim();
@@ -16,18 +16,12 @@ const chatWithAI = async (req, res) => {
       });
     }
     
-    // Build conversation history
-    // Filter out the latest user message to send it separately
     let history = messages.slice(0, -1).map(m => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }]
     }));
 
-    // IMPROVED FIX: Handle the case where history starts with 'model' (assistant)
-    // Gemini API requires history to start with 'user' role
-    // If first message is from model, we keep it but ensure proper pairing
     if (history.length > 0) {
-      // If history starts with 'model', add a synthetic user greeting first
       if (history[0].role === 'model') {
         history = [
           { role: 'user', parts: [{ text: 'Hello' }] },
@@ -35,11 +29,8 @@ const chatWithAI = async (req, res) => {
         ];
       }
       
-      // Ensure alternating user/model pattern
-      // If we have consecutive same roles, we need to fix that
       for (let i = 1; i < history.length; i++) {
         if (history[i].role === history[i-1].role) {
-          // Insert a synthetic message to maintain alternating pattern
           const syntheticRole = history[i].role === 'user' ? 'model' : 'user';
           const syntheticText = syntheticRole === 'model' ? 'I understand.' : 'Continue.';
           history.splice(i, 0, {
@@ -318,7 +309,7 @@ Format with clear sections and bullet points.`;
   }
 };
 
-module.exports = {
+export default {
   chatWithAI,
   analyzeResume,
   matchJobs,

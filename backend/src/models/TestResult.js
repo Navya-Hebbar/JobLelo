@@ -1,4 +1,5 @@
-const mongoose = require('mongoose');
+// backend/src/models/TestResult.js
+import mongoose from 'mongoose';
 
 const testResultSchema = new mongoose.Schema({
   userId: {
@@ -50,4 +51,4 @@ const testResultSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-module.exports = mongoose.model('TestResult', testResultSchema);
+export default mongoose.model('TestResult', testResultSchema);

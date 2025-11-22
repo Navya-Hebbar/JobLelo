@@ -1,12 +1,16 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-require('dotenv').config();
+// backend/src/Server.js
+import express from 'express';
+import mongoose from 'mongoose';
+import cors from 'cors';
+import dotenv from 'dotenv';
 
 // Import Routes
-const aiRoutes = require('./routes/aiRoutes');
-const dataRoutes = require('./routes/dataRoutes');
-const authRoutes = require('./routes/authRoutes');
+import aiRoutes from './routes/aiRoutes.js';
+import dataRoutes from './routes/dataRoutes.js';
+import authRoutes from './routes/authRoutes.js';
+import codingRoutes from './routes/codingRoutes.js';
+
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -31,7 +35,8 @@ mongoose.connect(MONGODB_URI)
 // Mount Routes
 app.use('/api', aiRoutes);
 app.use('/api', dataRoutes);
-app.use('/api/auth', authRoutes); // Prefix auth routes specifically
+app.use('/api/auth', authRoutes);
+app.use('/api/coding', codingRoutes); // Coding platform routes
 
 // Health Check
 app.get('/', (req, res) => {
@@ -43,7 +48,8 @@ app.get('/', (req, res) => {
       resume: '/api/resume/save',
       jobs: '/api/jobs/match',
       skills: '/api/skills/generate',
-      auth: '/api/auth/login'
+      auth: '/api/auth/login',
+      coding: '/api/coding/problems'
     }
   });
 });
@@ -60,4 +66,5 @@ app.use((err, req, res, next) => {
 // Start Server
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`📝 Coding Platform: http://localhost:${PORT}/api/coding/problems`);
 });

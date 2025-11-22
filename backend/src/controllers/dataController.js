@@ -1,11 +1,11 @@
-const Resume = require('../models/Resume');
-const TestResult = require('../models/TestResult');
+// backend/src/controllers/dataController.js
+import Resume from '../models/Resume.js';
+import TestResult from '../models/TestResult.js';
 
-// Save or Update Resume
-const saveResume = async (req, res) => {
+export const saveResume = async (req, res) => {
   try {
     const resumeData = req.body;
-    const userId = req.user._id; // Assumes authMiddleware adds user to req
+    const userId = req.user.userId; 
 
     if (!resumeData) {
       return res.status(400).json({ 
@@ -14,21 +14,18 @@ const saveResume = async (req, res) => {
       });
     }
 
-    // Check if resume exists for this user
     let resume = await Resume.findOne({ userId });
 
     if (resume) {
-      // Update existing resume
       resume = await Resume.findOneAndUpdate(
         { userId },
         { 
           ...resumeData, 
           version: resume.version + 1 
         },
-        { new: true } // Return the updated document
+        { new: true }
       );
     } else {
-      // Create new resume
       resume = await Resume.create({
         ...resumeData,
         userId
@@ -45,17 +42,19 @@ const saveResume = async (req, res) => {
     console.error('Save resume error:', error);
     res.status(500).json({ 
       success: false, 
-      error: 'Failed to save resume to database' 
+      error: 'Failed to save resume' 
     });
   }
 };
 
-// Get Resume for a specific user (or logged in user)
-const getResume = async (req, res) => {
+export const getResume = async (req, res) => {
   try {
-    // Allow getting own resume or specific user's resume (if admin/authorized)
-    const targetUserId = req.params.userId === 'current' ? req.user._id : req.params.userId;
+    let targetUserId = req.params.userId;
     
+    if (targetUserId === 'current') {
+      targetUserId = req.user.userId;
+    }
+
     const resume = await Resume.findOne({ userId: targetUserId }).sort({ updatedAt: -1 });
     
     if (!resume) {
@@ -79,8 +78,7 @@ const getResume = async (req, res) => {
   }
 };
 
-// Get all resumes (admin only feature usually)
-const getAllResumes = async (req, res) => {
+export const getAllResumes = async (req, res) => {
   try {
     const { userId } = req.query;
     const query = userId ? { userId } : {};
@@ -101,13 +99,11 @@ const getAllResumes = async (req, res) => {
   }
 };
 
-// Delete Resume
-const deleteResume = async (req, res) => {
+export const deleteResume = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user._id;
+    const userId = req.user.userId;
     
-    // Ensure user deletes only their own resume
     const result = await Resume.findOneAndDelete({ _id: id, userId });
     
     if (!result) {
@@ -130,11 +126,10 @@ const deleteResume = async (req, res) => {
   }
 };
 
-// Submit Test Score (Real-time Logic)
-const submitTestScore = async (req, res) => {
+export const submitTestScore = async (req, res) => {
   try {
     const scoreData = req.body;
-    const userId = req.user._id;
+    const userId = req.user.userId;
     
     if (!scoreData || typeof scoreData.score !== 'number') {
       return res.status(400).json({ 
@@ -143,15 +138,12 @@ const submitTestScore = async (req, res) => {
       });
     }
 
-    // --- Real-time Validation Logic ---
     const totalQuestions = scoreData.totalQuestions || 5;
     const timeTaken = scoreData.timeTakenSeconds || 0;
     
-    // Allow 60 seconds per question + 10 seconds buffer
     const allowedTime = (totalQuestions * 60) + 10; 
     const isTimeValid = timeTaken <= allowedTime;
 
-    // Determine speed rating
     let speedRating = 'Normal';
     const avgTimePerQuestion = timeTaken / totalQuestions;
     
@@ -165,8 +157,7 @@ const submitTestScore = async (req, res) => {
       passed: scoreData.score >= 70,
       speedRating,
       completedInTime: isTimeValid && (scoreData.completedInTime !== false),
-      // Mark as suspicious if time is impossibly low (e.g., < 2s per question)
-      isSuspicious: avgTimePerQuestion < 2 
+      isSuspicious: avgTimePerQuestion < 2
     });
 
     res.json({ 
@@ -183,13 +174,12 @@ const submitTestScore = async (req, res) => {
   }
 };
 
-// Get Test Scores
-const getTestScores = async (req, res) => {
+export const getTestScores = async (req, res) => {
   try {
-    const userId = req.query.userId || req.user._id;
+    const userId = req.query.userId || req.user.userId;
     
     const scores = await TestResult.find({ userId })
-      .sort({ timestamp: -1 }); // Newest first
+      .sort({ createdAt: -1 });
 
     res.json({ 
       success: true, 
@@ -203,13 +193,4 @@ const getTestScores = async (req, res) => {
       error: 'Failed to retrieve test scores' 
     });
   }
-};
-
-module.exports = { 
-  saveResume, 
-  getResume, 
-  getAllResumes,
-  deleteResume,
-  submitTestScore,
-  getTestScores
 };

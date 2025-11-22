@@ -1,10 +1,10 @@
 // backend/src/middleware/authMiddleware.js
-const jwt = require("jsonwebtoken");
+import jwt from "jsonwebtoken";
+
 const JWT_SECRET = process.env.JWT_SECRET || "joblelo-secret-key-change-in-production";
 
 const authMiddleware = (req, res, next) => {
   try {
-    // Get token from Authorization header
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -14,17 +14,12 @@ const authMiddleware = (req, res, next) => {
       });
     }
 
-    // Extract token
     const token = authHeader.split(' ')[1];
-    
-    // Verify token
     const decoded = jwt.verify(token, JWT_SECRET);
     
-    // Add user info to request
     req.userId = decoded.userId;
     req.user = decoded;
     
-    // Continue to next middleware/route
     next();
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
@@ -48,4 +43,4 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
-module.exports = authMiddleware;
+export default authMiddleware;

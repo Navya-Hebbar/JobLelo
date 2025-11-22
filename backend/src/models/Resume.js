@@ -1,4 +1,5 @@
-const mongoose = require('mongoose');
+// backend/src/models/Resume.js
+import mongoose from 'mongoose';
 
 const resumeSchema = new mongoose.Schema({
   userId: {
@@ -42,7 +43,6 @@ const resumeSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// Compound index for fast lookups by user
 resumeSchema.index({ userId: 1, updatedAt: -1 });
 
-module.exports = mongoose.model('Resume', resumeSchema);
+export default mongoose.model('Resume', resumeSchema);
