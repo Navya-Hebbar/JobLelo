@@ -21,6 +21,8 @@ import CodingPlatform from './pages/CodingPlatform';
 import UserReg from "./pages/UserReg";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
+import RoadmapPage from './pages/roadmap';
+import AboutUsContact from './pages/AboutUsContact';
 
 const AppContent = () => {
   const [showPrompt, setShowPrompt] = useState(false);
@@ -123,6 +125,22 @@ const AppContent = () => {
               element={
                 <ProtectedRoute>
                   <CodingPlatform />
+                </ProtectedRoute>
+              } 
+            />
+             <Route 
+              path="/roadmap" 
+              element={
+                <ProtectedRoute>
+                 <RoadmapPage />
+                </ProtectedRoute>
+              } 
+            />
+             <Route 
+              path="/about" 
+              element={
+                <ProtectedRoute>
+                 <AboutUsContact />
                 </ProtectedRoute>
               } 
             />

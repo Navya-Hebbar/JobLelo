@@ -27,6 +27,8 @@ const NavBar = () => {
     { name: 'Skill Test', href: '/test', icon: Brain, description: 'Take skill assessments' },
     { name: 'Jobs', href: '/jobs', icon: Jobs, description: 'Find job matches' },
     { name: 'Coding', href: '/coding', icon: Code, description: 'Practice coding problems' },
+    { name: 'Roadmap', href: '/roadmap', icon: Code, description: 'Roadmap for success' },
+    { name: 'About US', href: '/about', icon: Code, description: 'About us' },
   ];
 
   const navItems = isAuthenticated() 
