@@ -18,8 +18,14 @@ import JobRecommendations from './pages/JobRecommendations';
 
 function App() {
   const [showPrompt, setShowPrompt] = useState(true);
+import React from "react";
+import { Routes, Route } from "react-router-dom";
+import UserReg from "./pages/UserReg";
+import Login from "./pages/Login";
 
+const App = () => {
   return (
+<<<<<<< HEAD
     <VoiceProvider>
       <Router>
         <div className="min-h-screen bg-gray-50 text-gray-900 font-sans relative">
@@ -53,3 +59,13 @@ function App() {
 }
 
 export default App;
+=======
+    <Routes>
+      <Route path="/" element={<UserReg/>} />
+      <Route path="/login" element={<Login/>} /> 
+    </Routes>
+  );
+};
+
+export default App;
+>>>>>>> 311b5309d34888a9548ec09d1030970f0263225a
