@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { VoiceProvider } from './context/VoiceContext';
-import { AuthProvider, useAuth } from './context/AuthContext'; // Import useAuth
+import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Components
 import NavBar from './components/NavBar';
@@ -17,17 +17,16 @@ import ChatAssistant from './pages/ChatAssistant';
 import ResumeBuilder from './pages/ResumeBuilder';
 import SkillTest from './pages/SkillTest';
 import JobRecommendations from './pages/JobRecommendations';
+import CodingPlatform from './pages/CodingPlatform';
 import UserReg from "./pages/UserReg";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
 
-// Create a separate component to consume AuthContext
 const AppContent = () => {
   const [showPrompt, setShowPrompt] = useState(false);
   const { isAuthenticated, loading } = useAuth();
-  const isUserAuthenticated = isAuthenticated(); // Call the function to get boolean
+  const isUserAuthenticated = isAuthenticated();
 
-  // Check if user has seen accessibility prompt before
   useEffect(() => {
     if (isUserAuthenticated) {
       const hasSeenPrompt = localStorage.getItem('joblelo_seen_accessibility_prompt');
@@ -54,19 +53,15 @@ const AppContent = () => {
   return (
     <VoiceProvider>
       <div className="min-h-screen bg-gray-50 text-gray-900 font-sans relative">
-        {/* Accessibility Overlay */}
         {showPrompt && isUserAuthenticated && (
           <AccessibilityPrompt onComplete={handlePromptComplete} />
         )}
 
-        {/* Navigation */}
         <NavBar />
 
-        {/* Main Content */}
         <main className="container mx-auto px-4 py-8 pb-24">
           <Routes>
             {/* Public Routes */}
-            {/* Redirect to Dashboard if already logged in */}
             <Route 
               path="/" 
               element={isUserAuthenticated ? <Navigate to="/dashboard" replace /> : <Home />} 
@@ -124,6 +119,14 @@ const AppContent = () => {
               } 
             />
             <Route 
+              path="/coding" 
+              element={
+                <ProtectedRoute>
+                  <CodingPlatform />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
               path="/profile" 
               element={
                 <ProtectedRoute>
@@ -132,12 +135,10 @@ const AppContent = () => {
               } 
             />
             
-            {/* Fallback route */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
 
-        {/* Floating Voice Controls */}
         {isUserAuthenticated && <VoiceControlBar />}
       </div>
     </VoiceProvider>

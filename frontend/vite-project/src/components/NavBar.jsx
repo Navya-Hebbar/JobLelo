@@ -1,7 +1,10 @@
 // frontend/vite-project/src/components/NavBar.jsx
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Briefcase, Menu, X, Home, LayoutDashboard, MessageSquare, FileText, Brain, Briefcase as Jobs, User, LogOut } from 'lucide-react';
+import { 
+  Briefcase, Menu, X, Home, LayoutDashboard, MessageSquare, 
+  FileText, Brain, Briefcase as Jobs, User, LogOut, Code 
+} from 'lucide-react';
 import { useVoice } from '../context/VoiceContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -23,15 +26,14 @@ const NavBar = () => {
     { name: 'Resume', href: '/resume', icon: FileText, description: 'Build your resume' },
     { name: 'Skill Test', href: '/test', icon: Brain, description: 'Take skill assessments' },
     { name: 'Jobs', href: '/jobs', icon: Jobs, description: 'Find job matches' },
+    { name: 'Coding', href: '/coding', icon: Code, description: 'Practice coding problems' },
   ];
 
-  // Call isAuthenticated() as it's a function in your context
   const navItems = isAuthenticated() 
     ? [...publicNavItems, ...protectedNavItems]
     : publicNavItems;
 
   const handleNavClick = (name, href) => {
-    // Only speak explicitly on click
     if (isVoiceEnabled) {
         speak(`Navigating to ${name}`);
     }
@@ -73,7 +75,6 @@ const NavBar = () => {
                 <button
                   key={item.name}
                   onClick={() => handleNavClick(item.name, item.href)}
-                  /* REMOVED onMouseEnter to stop excessive speaking */
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg transition ${
                     isActive ? 'text-blue-400 bg-blue-900/30' : 'hover:text-blue-400'
                   }`}
