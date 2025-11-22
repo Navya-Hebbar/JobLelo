@@ -1,40 +1,63 @@
-import express from 'express';
-import mongoose from 'mongoose';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import authRoutes from './routes/authRoutes.js'; 
-// Load environment variables from .env file
-dotenv.config();
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+require('dotenv').config();
 
-// Configuration
+// Import Routes
+const aiRoutes = require('./routes/aiRoutes');
+const dataRoutes = require('./routes/dataRoutes');
+const authRoutes = require('./routes/authRoutes');
+
 const app = express();
-// Use process.env.PORT or default to 5000 as specified in your example
 const PORT = process.env.PORT || 5000;
-const MONGODB_URI = process.env.MONGODB_URI; 
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/joblelo";
 
-// 1. Middleware
-app.use(express.json()); // Allows JSON data to be parsed in the request body
-app.use(cors());         // Allows cross-origin requests
+// Middleware
+app.use(cors({
+  origin: 'http://localhost:5173', // Vite default port
+  credentials: true
+}));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// 2. Routes
-app.use('/api/auth', authRoutes);
-
-
-// 3. Database Connection and Server Start
-if (!MONGODB_URI) {
-    console.error("FATAL ERROR: MONGODB_URI is not defined in the environment variables.");
-    process.exit(1);
-}
-
+// Database Connection
 mongoose.connect(MONGODB_URI)
-    .then(() => {
-        console.log("MongoDB connection successful.");
-        app.listen(PORT, () => {
-            console.log(`Server is running on port ${PORT}`);
-            console.log(`Test Registration: POST http://localhost:${PORT}/api/auth/register`);
-        });
-    })
-    .catch(err => {
-        console.error("MongoDB connection failed:", err.message);
-        process.exit(1);
-    });
+  .then(() => console.log("✅ MongoDB connection successful."))
+  .catch(err => {
+    console.error("❌ MongoDB connection failed:", err.message);
+    process.exit(1);
+  });
+
+// Mount Routes
+app.use('/api', aiRoutes);
+app.use('/api', dataRoutes);
+app.use('/api/auth', authRoutes); // Prefix auth routes specifically
+
+// Health Check
+app.get('/', (req, res) => {
+  res.json({ 
+    status: 'running',
+    message: 'Joblelo AI Backend (Gemini-Powered)',
+    endpoints: {
+      chat: '/api/chat',
+      resume: '/api/resume/save',
+      jobs: '/api/jobs/match',
+      skills: '/api/skills/generate',
+      auth: '/api/auth/login'
+    }
+  });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(500).json({ 
+    success: false, 
+    error: err.message || 'Internal Server Error' 
+  });
+});
+
+// Start Server
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+});
