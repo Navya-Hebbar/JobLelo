@@ -1,35 +1,55 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+// navya-hebbar/joblelo/JobLelo-asdfghjk/frontend/vite-project/src/App.jsx
+
+import React, { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { VoiceProvider } from './context/VoiceContext';
+
+// Components
+import NavBar from './components/NavBar';
+import VoiceControlBar from './components/VoiceControlBar';
+import AccessibilityPrompt from './components/AccessibilityPrompt';
+
+// Pages
+import Home from './pages/Home';
+import ChatAssistant from './pages/ChatAssistant';
+import ResumeBuilder from './pages/ResumeBuilder';
+import SkillTest from './pages/SkillTest';
+import JobRecommendations from './pages/JobRecommendations';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [showPrompt, setShowPrompt] = useState(true);
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <VoiceProvider>
+      <Router>
+        <div className="min-h-screen bg-gray-50 text-gray-900 font-sans relative">
+          {/* Accessibility Overlay */}
+          {showPrompt && (
+            <AccessibilityPrompt onComplete={() => setShowPrompt(false)} />
+          )}
+
+          {/* Navigation */}
+          <NavBar />
+
+          {/* Main Content */}
+          <main className="container mx-auto px-4 py-8 pb-24">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/chat" element={<ChatAssistant />} />
+              <Route path="/resume" element={<ResumeBuilder />} />
+              <Route path="/test" element={<SkillTest />} />
+              <Route path="/jobs" element={<JobRecommendations />} />
+              {/* Fallback route */}
+              <Route path="*" element={<Home />} />
+            </Routes>
+          </main>
+
+          {/* Floating Voice Controls */}
+          <VoiceControlBar />
+        </div>
+      </Router>
+    </VoiceProvider>
+  );
 }
 
-export default App
+export default App;

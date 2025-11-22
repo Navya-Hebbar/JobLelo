@@ -17,10 +17,19 @@ const chatWithAI = async (req, res) => {
     }
     
     // Build conversation history
-    const history = messages.slice(0, -1).map(m => ({
+    // We slice(0, -1) to exclude the latest user message (which is sent separately)
+    let history = messages.slice(0, -1).map(m => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }]
     }));
+
+    // --- FIX START ---
+    // Gemini requires the history to START with a 'user' message.
+    // If the first message is from the 'model' (e.g., the welcome message), remove it.
+    if (history.length > 0 && history[0].role === 'model') {
+      history.shift(); // Remove the first element
+    }
+    // --- FIX END ---
 
     const chat = model.startChat({ history });
 
