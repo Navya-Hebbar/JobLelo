@@ -1,5 +1,4 @@
 const express = require('express');
-// Ensure your authController uses module.exports = { login, register }
 const { login, register } = require('../controllers/authController');
 
 const router = express.Router();
