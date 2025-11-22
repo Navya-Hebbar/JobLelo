@@ -1,66 +1,64 @@
-const db = require('../data/mockDb');
+const Resume = require('../models/Resume');
+const TestResult = require('../models/TestResult');
 
-const saveResume = (req, res) => {
+// Save or Update Resume
+const saveResume = async (req, res) => {
   try {
-    const resume = req.body;
-    
-    if (!resume || Object.keys(resume).length === 0) {
+    const resumeData = req.body;
+    const userId = req.user._id; // Assumes authMiddleware adds user to req
+
+    if (!resumeData) {
       return res.status(400).json({ 
         success: false, 
         error: 'Resume data is required' 
       });
     }
 
-    // Add metadata
-    const resumeData = {
-      ...resume,
-      id: resume.id || Date.now(),
-      userId: resume.userId || 'guest',
-      lastUpdated: new Date().toISOString(),
-      version: (resume.version || 0) + 1
-    };
+    // Check if resume exists for this user
+    let resume = await Resume.findOne({ userId });
 
-    // Check if resume exists and update, otherwise create new
-    const existingIndex = db.resumes.findIndex(
-      r => r.userId === resumeData.userId && r.id === resumeData.id
-    );
-
-    if (existingIndex !== -1) {
-      db.resumes[existingIndex] = resumeData;
+    if (resume) {
+      // Update existing resume
+      resume = await Resume.findOneAndUpdate(
+        { userId },
+        { 
+          ...resumeData, 
+          version: resume.version + 1 
+        },
+        { new: true } // Return the updated document
+      );
     } else {
-      db.resumes.push(resumeData);
+      // Create new resume
+      resume = await Resume.create({
+        ...resumeData,
+        userId
+      });
     }
 
     res.json({ 
       success: true, 
       message: 'Resume saved successfully',
-      resumeId: resumeData.id,
-      version: resumeData.version
+      resumeId: resume._id,
+      version: resume.version
     });
   } catch (error) {
     console.error('Save resume error:', error);
     res.status(500).json({ 
       success: false, 
-      error: 'Failed to save resume' 
+      error: 'Failed to save resume to database' 
     });
   }
 };
 
-const getResume = (req, res) => {
+// Get Resume for a specific user (or logged in user)
+const getResume = async (req, res) => {
   try {
-    const { userId } = req.params;
+    // Allow getting own resume or specific user's resume (if admin/authorized)
+    const targetUserId = req.params.userId === 'current' ? req.user._id : req.params.userId;
     
-    if (!userId) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'User ID is required' 
-      });
-    }
-
-    // Get the most recent resume for this user
-    const userResumes = db.resumes.filter(r => r.userId === userId);
+    const resume = await Resume.findOne({ userId: targetUserId }).sort({ updatedAt: -1 });
     
-    if (userResumes.length === 0) {
+    if (!resume) {
       return res.json({ 
         success: true, 
         resume: null,
@@ -68,14 +66,9 @@ const getResume = (req, res) => {
       });
     }
 
-    // Sort by version and get the latest
-    userResumes.sort((a, b) => (b.version || 0) - (a.version || 0));
-    const latestResume = userResumes[0];
-
     res.json({ 
       success: true, 
-      resume: latestResume,
-      totalVersions: userResumes.length
+      resume
     });
   } catch (error) {
     console.error('Get resume error:', error);
@@ -86,15 +79,13 @@ const getResume = (req, res) => {
   }
 };
 
-const getAllResumes = (req, res) => {
+// Get all resumes (admin only feature usually)
+const getAllResumes = async (req, res) => {
   try {
     const { userId } = req.query;
+    const query = userId ? { userId } : {};
     
-    let resumes = db.resumes;
-    
-    if (userId) {
-      resumes = resumes.filter(r => r.userId === userId);
-    }
+    const resumes = await Resume.find(query).sort({ updatedAt: -1 });
 
     res.json({ 
       success: true, 
@@ -110,24 +101,19 @@ const getAllResumes = (req, res) => {
   }
 };
 
-const deleteResume = (req, res) => {
+// Delete Resume
+const deleteResume = async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user._id;
     
-    if (!id) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Resume ID is required' 
-      });
-    }
-
-    const initialLength = db.resumes.length;
-    db.resumes = db.resumes.filter(r => r.id !== parseInt(id));
+    // Ensure user deletes only their own resume
+    const result = await Resume.findOneAndDelete({ _id: id, userId });
     
-    if (db.resumes.length === initialLength) {
+    if (!result) {
       return res.status(404).json({ 
         success: false, 
-        error: 'Resume not found' 
+        error: 'Resume not found or unauthorized' 
       });
     }
 
@@ -144,9 +130,11 @@ const deleteResume = (req, res) => {
   }
 };
 
-const submitTestScore = (req, res) => {
+// Submit Test Score (Real-time Logic)
+const submitTestScore = async (req, res) => {
   try {
     const scoreData = req.body;
+    const userId = req.user._id;
     
     if (!scoreData || typeof scoreData.score !== 'number') {
       return res.status(400).json({ 
@@ -155,15 +143,31 @@ const submitTestScore = (req, res) => {
       });
     }
 
-    const testResult = {
-      ...scoreData,
-      id: Date.now(),
-      userId: scoreData.userId || 'guest',
-      timestamp: new Date().toISOString(),
-      passed: scoreData.score >= 70
-    };
+    // --- Real-time Validation Logic ---
+    const totalQuestions = scoreData.totalQuestions || 5;
+    const timeTaken = scoreData.timeTakenSeconds || 0;
+    
+    // Allow 60 seconds per question + 10 seconds buffer
+    const allowedTime = (totalQuestions * 60) + 10; 
+    const isTimeValid = timeTaken <= allowedTime;
 
-    db.testScores.push(testResult);
+    // Determine speed rating
+    let speedRating = 'Normal';
+    const avgTimePerQuestion = timeTaken / totalQuestions;
+    
+    if (avgTimePerQuestion < 10) speedRating = 'Super Fast'; 
+    else if (avgTimePerQuestion < 30) speedRating = 'Fast';
+    else if (avgTimePerQuestion > 50) speedRating = 'Deliberate';
+
+    const testResult = await TestResult.create({
+      ...scoreData,
+      userId,
+      passed: scoreData.score >= 70,
+      speedRating,
+      completedInTime: isTimeValid && (scoreData.completedInTime !== false),
+      // Mark as suspicious if time is impossibly low (e.g., < 2s per question)
+      isSuspicious: avgTimePerQuestion < 2 
+    });
 
     res.json({ 
       success: true,
@@ -179,20 +183,13 @@ const submitTestScore = (req, res) => {
   }
 };
 
-const getTestScores = (req, res) => {
+// Get Test Scores
+const getTestScores = async (req, res) => {
   try {
-    const { userId } = req.query;
+    const userId = req.query.userId || req.user._id;
     
-    let scores = db.testScores;
-    
-    if (userId) {
-      scores = scores.filter(s => s.userId === userId);
-    }
-
-    // Sort by timestamp (newest first)
-    scores.sort((a, b) => 
-      new Date(b.timestamp) - new Date(a.timestamp)
-    );
+    const scores = await TestResult.find({ userId })
+      .sort({ timestamp: -1 }); // Newest first
 
     res.json({ 
       success: true, 

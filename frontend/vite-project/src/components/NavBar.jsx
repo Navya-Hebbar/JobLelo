@@ -25,18 +25,24 @@ const NavBar = () => {
     { name: 'Jobs', href: '/jobs', icon: Jobs, description: 'Find job matches' },
   ];
 
+  // Call isAuthenticated() as it's a function in your context
   const navItems = isAuthenticated() 
     ? [...publicNavItems, ...protectedNavItems]
     : publicNavItems;
 
   const handleNavClick = (name, href) => {
-    speak(`Navigating to ${name}`);
+    // Only speak explicitly on click
+    if (isVoiceEnabled) {
+        speak(`Navigating to ${name}`);
+    }
     navigate(href);
     setIsMobileMenuOpen(false);
   };
 
   const handleLogout = () => {
-    speak('Logging out');
+    if (isVoiceEnabled) {
+        speak('Logging out');
+    }
     logout();
     setShowProfileMenu(false);
     navigate('/');
@@ -67,7 +73,7 @@ const NavBar = () => {
                 <button
                   key={item.name}
                   onClick={() => handleNavClick(item.name, item.href)}
-                  onMouseEnter={() => isVoiceEnabled && speak(item.name)}
+                  /* REMOVED onMouseEnter to stop excessive speaking */
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg transition ${
                     isActive ? 'text-blue-400 bg-blue-900/30' : 'hover:text-blue-400'
                   }`}
@@ -214,7 +220,7 @@ const NavBar = () => {
       {/* Voice Status */}
       {isVoiceEnabled && isAuthenticated() && (
         <div className="bg-green-600 text-white text-xs py-1 px-4 text-center">
-          🎤 Voice control active • Press 1-{navItems.length} for navigation
+          🎤 Voice control active
         </div>
       )}
     </nav>

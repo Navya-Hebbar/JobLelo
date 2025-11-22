@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Loader2, RefreshCw, Trophy, Target } from 'lucide-react';
+// frontend/vite-project/src/pages/SkillTest.jsx
+import React, { useState, useEffect, useRef } from 'react';
+import { Loader2, RefreshCw, Trophy, Target, Clock, AlertCircle } from 'lucide-react';
 import QuestionCard from '../components/QuestionCard';
 import { api } from '../services/api';
 import { useVoice } from '../context/VoiceContext';
@@ -19,10 +20,41 @@ const SkillTest = () => {
     count: 5
   });
   const [hasStarted, setHasStarted] = useState(false);
+  
+  // Real-time specific state
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [totalTimeTaken, setTotalTimeTaken] = useState(0);
+  
+  // Constants
+  const SECONDS_PER_QUESTION = 60; // 1 minute per question
+
+  // Timer Logic
+  useEffect(() => {
+    let interval;
+    if (hasStarted && !isLoading && !isFinished && questions.length > 0) {
+      interval = setInterval(() => {
+        setTimeLeft((prevTime) => {
+          // Voice Alerts
+          if (prevTime === 60) speak('One minute remaining');
+          if (prevTime === 30) speak('30 seconds left');
+          if (prevTime === 10) speak('10 seconds, hurry up');
+
+          if (prevTime <= 1) {
+            clearInterval(interval);
+            handleAutoSubmit();
+            return 0;
+          }
+          return prevTime - 1;
+        });
+        
+        setTotalTimeTaken(prev => prev + 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [hasStarted, isLoading, isFinished, questions.length, speak]);
 
   const startTest = async () => {
     setIsLoading(true);
-    setHasStarted(true);
     
     try {
       const response = await api.generateTest(
@@ -33,7 +65,12 @@ const SkillTest = () => {
       
       if (response.success && response.questions) {
         setQuestions(response.questions);
-        speak(`Starting ${testConfig.topic} test with ${testConfig.count} questions`);
+        // Set timer based on question count
+        const totalTime = testConfig.count * SECONDS_PER_QUESTION;
+        setTimeLeft(totalTime);
+        setHasStarted(true);
+        
+        speak(`Starting ${testConfig.topic} test. You have ${Math.floor(totalTime / 60)} minutes.`);
       } else {
         throw new Error('Failed to load questions');
       }
@@ -53,7 +90,7 @@ const SkillTest = () => {
   const handleNext = () => {
     if (currentStep < questions.length - 1) {
       setCurrentStep(currentStep + 1);
-      speak(`Question ${currentStep + 2} of ${questions.length}`);
+      speak(`Question ${currentStep + 2}`);
     } else {
       handleSubmit();
     }
@@ -63,6 +100,11 @@ const SkillTest = () => {
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1);
     }
+  };
+
+  const handleAutoSubmit = () => {
+    speak('Time is up! Submitting your test now.');
+    handleSubmit();
   };
 
   const handleSubmit = async () => {
@@ -78,7 +120,7 @@ const SkillTest = () => {
     setScore(finalScore);
     setIsFinished(true);
 
-    // Submit to backend
+    // Submit to backend with time metrics
     try {
       await api.submitTest({ 
         score: finalScore, 
@@ -86,13 +128,22 @@ const SkillTest = () => {
         topic: testConfig.topic,
         difficulty: testConfig.difficulty,
         totalQuestions: questions.length,
-        correctAnswers: correctCount
+        correctAnswers: correctCount,
+        timeTakenSeconds: totalTimeTaken,
+        completedInTime: timeLeft > 0
       });
       
-      speak(`Test completed. Your score is ${finalScore} percent`);
+      const feedback = finalScore > 70 ? "Great job!" : "Keep practicing.";
+      speak(`Test completed. Your score is ${finalScore} percent. ${feedback}`);
     } catch (err) {
       console.error('Failed to submit score:', err);
     }
+  };
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
   const getFeedback = () => {
@@ -127,6 +178,8 @@ const SkillTest = () => {
     setIsFinished(false);
     setScore(0);
     setHasStarted(false);
+    setTimeLeft(0);
+    setTotalTimeTaken(0);
   };
 
   // Test Configuration Screen
@@ -136,8 +189,8 @@ const SkillTest = () => {
         <div className="bg-white rounded-lg shadow-xl p-8">
           <div className="text-center mb-8">
             <Target className="w-16 h-16 text-purple-600 mx-auto mb-4" />
-            <h2 className="text-3xl font-bold text-gray-800 mb-2">Skill Assessment</h2>
-            <p className="text-gray-600">Configure your test settings</p>
+            <h2 className="text-3xl font-bold text-gray-800 mb-2">Real-Time Assessment</h2>
+            <p className="text-gray-600">Configure your timed skill test</p>
           </div>
 
           <div className="space-y-6">
@@ -183,16 +236,16 @@ const SkillTest = () => {
 
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Number of Questions
+                Number of Questions (1 min/question)
               </label>
               <select
                 value={testConfig.count}
                 onChange={(e) => setTestConfig({...testConfig, count: parseInt(e.target.value)})}
                 className="w-full border-2 border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
               >
-                <option value="5">5 Questions (Quick)</option>
-                <option value="10">10 Questions (Standard)</option>
-                <option value="15">15 Questions (Comprehensive)</option>
+                <option value="5">5 Questions (5 Minutes)</option>
+                <option value="10">10 Questions (10 Minutes)</option>
+                <option value="15">15 Questions (15 Minutes)</option>
               </select>
             </div>
           </div>
@@ -205,10 +258,10 @@ const SkillTest = () => {
             {isLoading ? (
               <>
                 <Loader2 className="animate-spin" size={24} />
-                Generating Questions...
+                Generating Real-Time Test...
               </>
             ) : (
-              'Start Test'
+              'Start Timed Test'
             )}
           </button>
         </div>
@@ -219,6 +272,7 @@ const SkillTest = () => {
   // Results Screen
   if (isFinished) {
     const feedback = getFeedback();
+    const timeDisplay = formatTime(totalTimeTaken);
     
     return (
       <div className="max-w-2xl mx-auto mt-10">
@@ -235,7 +289,7 @@ const SkillTest = () => {
             <p className="text-gray-700">{feedback.msg}</p>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 mb-6 text-sm">
+          <div className="grid grid-cols-4 gap-4 mb-6 text-sm">
             <div className="bg-gray-50 p-4 rounded-lg">
               <div className="font-bold text-2xl text-gray-800">
                 {Object.keys(answers).length}
@@ -255,6 +309,13 @@ const SkillTest = () => {
                 {questions.filter((q, i) => answers[i] && answers[i] !== q.correct).length}
               </div>
               <div className="text-gray-600">Wrong</div>
+            </div>
+
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <div className="font-bold text-2xl text-blue-600">
+                {timeDisplay}
+              </div>
+              <div className="text-gray-600">Time</div>
             </div>
           </div>
 
@@ -279,15 +340,29 @@ const SkillTest = () => {
     );
   }
 
+  // Timer Color Logic
+  const getTimerColor = () => {
+    if (timeLeft < 10) return 'text-red-600 animate-pulse';
+    if (timeLeft < 60) return 'text-orange-500';
+    return 'text-gray-700';
+  };
+
   return (
     <div className="max-w-3xl mx-auto mt-8">
-      <div className="mb-6 flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-800">
-          {testConfig.topic} - {testConfig.difficulty}
-        </h2>
-        <span className="text-gray-600 font-semibold">
-          Question {currentStep + 1} of {questions.length}
-        </span>
+      <div className="bg-white p-4 rounded-lg shadow-sm mb-6 flex justify-between items-center sticky top-20 z-10">
+        <div>
+          <h2 className="text-xl font-bold text-gray-800">
+            {testConfig.topic}
+          </h2>
+          <span className="text-sm text-gray-500">
+            {testConfig.difficulty} Level
+          </span>
+        </div>
+        
+        <div className={`flex items-center gap-2 text-2xl font-mono font-bold ${getTimerColor()}`}>
+          <Clock size={24} />
+          {formatTime(timeLeft)}
+        </div>
       </div>
 
       {/* Progress Bar */}
@@ -304,7 +379,7 @@ const SkillTest = () => {
         onSelectOption={handleOptionSelect} 
       />
 
-      <div className="mt-6 flex justify-between">
+      <div className="mt-6 flex justify-between items-center">
         <button
           onClick={handlePrevious}
           disabled={currentStep === 0}
@@ -312,6 +387,10 @@ const SkillTest = () => {
         >
           Previous
         </button>
+        
+        <div className="text-sm text-gray-500 font-medium">
+          Question {currentStep + 1} of {questions.length}
+        </div>
         
         <button
           disabled={!answers[currentStep]}
@@ -324,11 +403,6 @@ const SkillTest = () => {
         >
           {currentStep === questions.length - 1 ? "Submit Test" : "Next Question"}
         </button>
-      </div>
-
-      {/* Question Counter */}
-      <div className="mt-4 text-center text-sm text-gray-500">
-        {Object.keys(answers).length} of {questions.length} answered
       </div>
     </div>
   );
