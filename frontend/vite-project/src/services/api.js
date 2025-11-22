@@ -146,6 +146,39 @@ export const api = {
     });
   },
 
+  // Coding Platform Services [NEW]
+  getAllProblems: async (filters = {}) => {
+    const query = new URLSearchParams(filters).toString();
+    return request(`/coding/problems?${query}`);
+  },
+
+  getProblemDetails: async (slug) => {
+    return request(`/coding/problems/${slug}`);
+  },
+
+  runCode: async (data) => {
+    return request('/coding/run', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  submitSolution: async (data) => {
+    return request('/coding/submit', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  refreshProblems: async () => {
+    return request('/coding/refresh', { method: 'POST' });
+  },
+
+  getLeaderboard: async (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/coding/leaderboard?${query}`);
+  },
+
   // User Profile Services
   getUserProfile: async () => {
     return request('/user/profile');

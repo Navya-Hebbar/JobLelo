@@ -146,37 +146,69 @@ const SkillTest = () => {
     setIsLoading(true);
     
     try {
-      // NEW: Submit to enhanced endpoint that handles all 4 requirements
-      const response = await api.submitEnhancedTest({
+      // 1. Calculate Score Client-Side
+      let correctCount = 0;
+      let answeredCount = 0;
+      
+      questions.forEach((q, index) => {
+        if (answers[index]) {
+          answeredCount++;
+          if (answers[index] === q.correct) {
+            correctCount++;
+          }
+        }
+      });
+      
+      // Calculate percentage score
+      const calculatedScore = questions.length > 0 
+        ? Math.round((correctCount / questions.length) * 100) 
+        : 0;
+
+      // 2. Prepare payload for the EXISTING backend endpoint
+      const payload = {
         topic: testConfig.topic,
         difficulty: testConfig.difficulty,
-        answers,
-        questions,
+        score: calculatedScore, // Backend expects 'score'
         totalQuestions: questions.length,
+        correctAnswers: correctCount,
         timeTakenSeconds: totalTimeTaken,
         completedInTime: timeLeft > 0
-      });
+      };
+
+      // 3. Call the correct API method (api.submitTest instead of submitEnhancedTest)
+      const response = await api.submitTest(payload);
 
       if (response.success) {
-        setTestResults(response.results);
-        setScore(response.results.score);
+        // 4. Construct the results object for the UI
+        const resultsData = {
+          score: calculatedScore,
+          correctCount: correctCount,
+          wrongCount: questions.length - correctCount,
+          answeredCount: answeredCount,
+          pointsAwarded: response.result.passed ? (calculatedScore / 10) : 0,
+          // Mock hidden tests info since we are grading client-side for now
+          hiddenTestsInfo: null 
+        };
+
+        setTestResults(resultsData);
+        setScore(calculatedScore);
         setIsFinished(true);
 
         // Update local stats
         setUserStats(prev => ({
-          totalPoints: prev.totalPoints + (response.results.pointsAwarded || 0),
+          totalPoints: prev.totalPoints + (resultsData.pointsAwarded || 0),
           testsCompleted: prev.testsCompleted + 1,
-          avgScore: response.results.newAvgScore || prev.avgScore
+          avgScore: Math.round((prev.avgScore * prev.testsCompleted + calculatedScore) / (prev.testsCompleted + 1))
         }));
 
         // Reload history to show new submission
         loadSubmissionHistory();
 
-        const feedback = response.results.score > 70 
-          ? `Excellent! You earned ${response.results.pointsAwarded} points!` 
+        const feedback = calculatedScore > 70 
+          ? `Excellent! You earned ${resultsData.pointsAwarded} points!` 
           : "Keep practicing.";
         
-        speak(`Test completed. Your score is ${response.results.score} percent. ${feedback}`);
+        speak(`Test completed. Your score is ${calculatedScore} percent. ${feedback}`);
       }
     } catch (error) {
       console.error('Submission failed:', error);
