@@ -1,7 +1,7 @@
 // frontend/vite-project/src/components/NavBar.jsx
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Briefcase, Menu, X, Home, MessageSquare, FileText, Brain, Briefcase as Jobs, User, LogOut } from 'lucide-react';
+import { Briefcase, Menu, X, Home, LayoutDashboard, MessageSquare, FileText, Brain, Briefcase as Jobs, User, LogOut } from 'lucide-react';
 import { useVoice } from '../context/VoiceContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -18,6 +18,7 @@ const NavBar = () => {
   ];
 
   const protectedNavItems = [
+    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, description: 'View your dashboard' },
     { name: 'AI Assistant', href: '/chat', icon: MessageSquare, description: 'Open AI chat assistant' },
     { name: 'Resume', href: '/resume', icon: FileText, description: 'Build your resume' },
     { name: 'Skill Test', href: '/test', icon: Brain, description: 'Take skill assessments' },
@@ -38,6 +39,7 @@ const NavBar = () => {
     speak('Logging out');
     logout();
     setShowProfileMenu(false);
+    navigate('/');
   };
 
   return (
@@ -72,9 +74,11 @@ const NavBar = () => {
                 >
                   <Icon size={18} />
                   <span>{item.name}</span>
-                  <kbd className="ml-1 text-xs bg-gray-700 px-1.5 py-0.5 rounded">
-                    {index + 1}
-                  </kbd>
+                  {index < 9 && (
+                    <kbd className="ml-1 text-xs bg-gray-700 px-1.5 py-0.5 rounded">
+                      {index + 1}
+                    </kbd>
+                  )}
                 </button>
               );
             })}
@@ -208,7 +212,7 @@ const NavBar = () => {
       </div>
 
       {/* Voice Status */}
-      {isVoiceEnabled && (
+      {isVoiceEnabled && isAuthenticated() && (
         <div className="bg-green-600 text-white text-xs py-1 px-4 text-center">
           🎤 Voice control active • Press 1-{navItems.length} for navigation
         </div>
