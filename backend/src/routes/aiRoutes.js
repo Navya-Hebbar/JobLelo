@@ -1,11 +1,13 @@
 const express = require('express');
 const aiController = require('../controllers/aiController');
+const authMiddleware = require('../middleware/authMiddleware');
 const router = express.Router();
 
-router.post('/chat', aiController.chatWithAI);
-router.post('/resume/analyze', aiController.analyzeResume);
-router.post('/jobs/match', aiController.matchJobs);
-router.post('/skills/generate', aiController.generateSkillTest);
-router.post('/roadmap/generate', aiController.generateRoadmap);
+// All AI routes require authentication
+router.post('/chat', authMiddleware, aiController.chatWithAI);
+router.post('/resume/analyze', authMiddleware, aiController.analyzeResume);
+router.post('/jobs/match', authMiddleware, aiController.matchJobs);
+router.post('/skills/generate', authMiddleware, aiController.generateSkillTest);
+router.post('/roadmap/generate', authMiddleware, aiController.generateRoadmap);
 
 module.exports = router;

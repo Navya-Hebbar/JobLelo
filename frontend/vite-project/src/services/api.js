@@ -1,20 +1,43 @@
+// frontend/vite-project/src/services/api.js
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-// Helper for requests with better error handling
+// Get auth token from localStorage
+const getAuthToken = () => {
+  return localStorage.getItem('joblelo_token');
+};
+
+// Helper for requests with better error handling and auth
 const request = async (endpoint, options = {}) => {
   try {
+    const token = getAuthToken();
+    const headers = {
+      'Content-Type': 'application/json',
+      ...options.headers
+    };
+
+    // Add Authorization header if token exists
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-      headers: { 
-        'Content-Type': 'application/json',
-        ...options.headers
-      },
+      headers,
       ...options,
     });
 
     const data = await res.json();
     
+    // Handle authentication errors
+    if (res.status === 401 || res.status === 403) {
+      // Token expired or invalid
+      localStorage.removeItem('joblelo_token');
+      localStorage.removeItem('joblelo_user_email');
+      window.location.href = '/login';
+      throw new Error('Session expired. Please login again.');
+    }
+    
     if (!res.ok) {
-      throw new Error(data.error || `HTTP ${res.status}: ${res.statusText}`);
+      throw new Error(data.error || data.message || `HTTP ${res.status}: ${res.statusText}`);
     }
     
     return data;
@@ -25,13 +48,26 @@ const request = async (endpoint, options = {}) => {
 };
 
 export const api = {
+  // Authentication Services
+  register: async (email, password) => {
+    return request('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ email, password })
+    });
+  },
+
+  login: async (email, password) => {
+    return request('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password })
+    });
+  },
+
   // AI Chat Service
   chatWithAI: async (messages) => {
     return request('/chat', { 
       method: 'POST', 
-      body: JSON.stringify({ 
-        messages: messages // Send the full array
-      }) 
+      body: JSON.stringify({ messages }) 
     });
   },
 
@@ -43,8 +79,8 @@ export const api = {
     });
   },
   
-  getResume: async (userId = 'guest') => {
-    return request(`/resume/${userId}`);
+  getResume: async (userId) => {
+    return request(`/resume/${userId || 'current'}`);
   },
 
   analyzeResume: async (resumeText) => {
@@ -89,6 +125,18 @@ export const api = {
     return request('/roadmap/generate', {
       method: 'POST',
       body: JSON.stringify({ targetRole, currentSkills, timeframe })
+    });
+  },
+
+  // User Profile Services
+  getUserProfile: async () => {
+    return request('/user/profile');
+  },
+
+  updateUserProfile: async (profileData) => {
+    return request('/user/profile', {
+      method: 'PUT',
+      body: JSON.stringify(profileData)
     });
   },
 

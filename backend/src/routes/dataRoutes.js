@@ -1,15 +1,15 @@
 const express = require('express');
 const dataController = require('../controllers/dataController');
+const authMiddleware = require('../middleware/authMiddleware');
 const router = express.Router();
 
-// Resume routes
-router.post('/resume/save', dataController.saveResume);
-router.get('/resume/:userId', dataController.getResume);
-router.get('/resumes', dataController.getAllResumes);
-router.delete('/resume/:id', dataController.deleteResume);
+// All data routes require authentication
+router.post('/resume/save', authMiddleware, dataController.saveResume);
+router.get('/resume/:userId', authMiddleware, dataController.getResume);
+router.get('/resumes', authMiddleware, dataController.getAllResumes);
+router.delete('/resume/:id', authMiddleware, dataController.deleteResume);
 
-// Test score routes
-router.post('/skills/submit', dataController.submitTestScore);
-router.get('/skills/scores', dataController.getTestScores);
+router.post('/skills/submit', authMiddleware, dataController.submitTestScore);
+router.get('/skills/scores', authMiddleware, dataController.getTestScores);
 
 module.exports = router;

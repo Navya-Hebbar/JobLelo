@@ -1,6 +1,6 @@
+// backend/src/controllers/aiController.js
 const model = require('../config/gemini');
 
-// Helper to clean JSON strings from Markdown
 const cleanJSON = (text) => {
   return text.replace(/```json|```/g, '').trim();
 };
@@ -17,19 +17,38 @@ const chatWithAI = async (req, res) => {
     }
     
     // Build conversation history
-    // We slice(0, -1) to exclude the latest user message (which is sent separately)
+    // Filter out the latest user message to send it separately
     let history = messages.slice(0, -1).map(m => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }]
     }));
 
-    // --- FIX START ---
-    // Gemini requires the history to START with a 'user' message.
-    // If the first message is from the 'model' (e.g., the welcome message), remove it.
-    if (history.length > 0 && history[0].role === 'model') {
-      history.shift(); // Remove the first element
+    // IMPROVED FIX: Handle the case where history starts with 'model' (assistant)
+    // Gemini API requires history to start with 'user' role
+    // If first message is from model, we keep it but ensure proper pairing
+    if (history.length > 0) {
+      // If history starts with 'model', add a synthetic user greeting first
+      if (history[0].role === 'model') {
+        history = [
+          { role: 'user', parts: [{ text: 'Hello' }] },
+          ...history
+        ];
+      }
+      
+      // Ensure alternating user/model pattern
+      // If we have consecutive same roles, we need to fix that
+      for (let i = 1; i < history.length; i++) {
+        if (history[i].role === history[i-1].role) {
+          // Insert a synthetic message to maintain alternating pattern
+          const syntheticRole = history[i].role === 'user' ? 'model' : 'user';
+          const syntheticText = syntheticRole === 'model' ? 'I understand.' : 'Continue.';
+          history.splice(i, 0, {
+            role: syntheticRole,
+            parts: [{ text: syntheticText }]
+          });
+        }
+      }
     }
-    // --- FIX END ---
 
     const chat = model.startChat({ history });
 
@@ -143,7 +162,6 @@ Base match scores on real skill alignment. Include realistic missing skills.`;
       matches = JSON.parse(text);
     } catch (parseError) {
       console.error('JSON parse error:', parseError);
-      // Fallback with realistic data
       matches = [
         { 
           role: "Junior Frontend Developer", 
@@ -227,7 +245,6 @@ Return ONLY valid JSON (no markdown):
       questions = JSON.parse(text);
     } catch (parseError) {
       console.error('JSON parse error:', parseError);
-      // Fallback questions
       questions = [
         {
           question: `What is a key concept in ${topic}?`,
