@@ -39,7 +39,6 @@ const AppContent = () => {
       }
     }
   }, [isUserAuthenticated]);
-  }, [isUserAuthenticated]);
 
   const handlePromptComplete = (enabled) => {
     localStorage.setItem('joblelo_seen_accessibility_prompt', 'true');
@@ -48,10 +47,6 @@ const AppContent = () => {
     }
     setShowPrompt(false);
   };
-
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-gray-50">Loading...</div>;
-  }
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center bg-gray-50">Loading...</div>;
