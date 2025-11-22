@@ -1,5 +1,3 @@
-// navya-hebbar/joblelo/JobLelo-asdfghjk/frontend/vite-project/src/App.jsx
-
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { VoiceProvider } from './context/VoiceContext';
@@ -15,17 +13,13 @@ import ChatAssistant from './pages/ChatAssistant';
 import ResumeBuilder from './pages/ResumeBuilder';
 import SkillTest from './pages/SkillTest';
 import JobRecommendations from './pages/JobRecommendations';
-
-function App() {
-  const [showPrompt, setShowPrompt] = useState(true);
-import React from "react";
-import { Routes, Route } from "react-router-dom";
 import UserReg from "./pages/UserReg";
 import Login from "./pages/Login";
 
-const App = () => {
+function App() {
+  const [showPrompt, setShowPrompt] = useState(true);
+
   return (
-<<<<<<< HEAD
     <VoiceProvider>
       <Router>
         <div className="min-h-screen bg-gray-50 text-gray-900 font-sans relative">
@@ -41,10 +35,13 @@ const App = () => {
           <main className="container mx-auto px-4 py-8 pb-24">
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/register" element={<UserReg />} />
+              <Route path="/login" element={<Login />} />
               <Route path="/chat" element={<ChatAssistant />} />
               <Route path="/resume" element={<ResumeBuilder />} />
               <Route path="/test" element={<SkillTest />} />
               <Route path="/jobs" element={<JobRecommendations />} />
+              
               {/* Fallback route */}
               <Route path="*" element={<Home />} />
             </Routes>
@@ -59,13 +56,3 @@ const App = () => {
 }
 
 export default App;
-=======
-    <Routes>
-      <Route path="/" element={<UserReg/>} />
-      <Route path="/login" element={<Login/>} /> 
-    </Routes>
-  );
-};
-
-export default App;
->>>>>>> 311b5309d34888a9548ec09d1030970f0263225a
