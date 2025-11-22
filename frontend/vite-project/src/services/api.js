@@ -1,5 +1,18 @@
 // frontend/vite-project/src/services/api.js
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const getBaseUrl = () => {
+  let base = import.meta.env.VITE_API_URL || "http://localhost:5000";
+  // Remove trailing slash if present
+  if (base.endsWith('/')) {
+    base = base.slice(0, -1);
+  }
+  // Append /api if not present
+  if (!base.endsWith('/api')) {
+    base += '/api';
+  }
+  return base;
+};
+
+const API_BASE_URL = getBaseUrl();
 
 // Get auth token from localStorage
 const getAuthToken = () => {
@@ -20,7 +33,10 @@ const request = async (endpoint, options = {}) => {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+    // Ensure endpoint starts with /
+    const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    
+    const res = await fetch(`${API_BASE_URL}${path}`, {
       headers,
       ...options,
     });
@@ -29,10 +45,12 @@ const request = async (endpoint, options = {}) => {
     
     // Handle authentication errors
     if (res.status === 401 || res.status === 403) {
-      // Token expired or invalid
-      localStorage.removeItem('joblelo_token');
-      localStorage.removeItem('joblelo_user_email');
-      window.location.href = '/login';
+      // Only clear and redirect if we have a token that is now invalid
+      if (localStorage.getItem('joblelo_token')) {
+        localStorage.removeItem('joblelo_token');
+        localStorage.removeItem('joblelo_user'); // Updated key
+        window.location.href = '/login';
+      }
       throw new Error('Session expired. Please login again.');
     }
     

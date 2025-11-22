@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { api } from "../services/api"; // Import the centralized api service
 import { Loader2 } from "lucide-react";
 
 const Login = () => {
@@ -65,20 +66,8 @@ const Login = () => {
     });
 
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
-      const res = await fetch(`${API_BASE}/api/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || "Login failed");
-      }
+      // Use the api service logic
+      const data = await api.login(email, password);
 
       const { token, user } = data;
 
@@ -138,6 +127,7 @@ const Login = () => {
     }
   };
 
+  // ... rest of the JSX remains identical (Return block)
   return (
     <div className="min-h-screen w-full font-sans bg-gradient-to-br from-[#020617] via-black to-[#020617] text-white flex items-stretch justify-center overflow-x-hidden">
       <div className="pointer-events-none fixed inset-0 opacity-50">

@@ -1,6 +1,7 @@
 // frontend/vite-project/src/pages/UserReg.jsx
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { api } from "../services/api"; // Import centralized api service
 import { Loader2 } from "lucide-react";
 
 const UserReg = () => {
@@ -22,7 +23,9 @@ const UserReg = () => {
   };
 
   const isValidPassword = (password) => {
-    const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/;
+    // Updated regex to allow special characters (any char) as long as complexity is met
+    // At least 1 lower, 1 upper, 1 number, 8+ characters total
+    const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
     return regex.test(password);
   };
 
@@ -81,20 +84,8 @@ const UserReg = () => {
     });
 
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
-      const res = await fetch(`${API_BASE}/api/auth/register`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const result = await res.json();
-
-      if (!res.ok) {
-        throw new Error(result.message || "Registration failed");
-      }
+      // Use api service logic
+      const result = await api.register(email, password);
 
       setStatusMessage({
         type: "success",
@@ -157,6 +148,7 @@ const UserReg = () => {
     }
   };
 
+  // ... rest of JSX remains unchanged (Return block)
   return (
     <div className="min-h-screen w-full font-sans bg-gradient-to-br from-[#020617] via-black to-[#020617] text-white flex items-stretch justify-center overflow-x-hidden">
       <div className="pointer-events-none fixed inset-0 opacity-60">

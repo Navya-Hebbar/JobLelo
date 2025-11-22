@@ -13,11 +13,17 @@ export const AuthProvider = ({ children }) => {
   // Load auth state on mount
   useEffect(() => {
     const storedToken = localStorage.getItem('joblelo_token');
-    const storedEmail = localStorage.getItem('joblelo_user_email');
+    const storedUser = localStorage.getItem('joblelo_user');
     
-    if (storedToken && storedEmail) {
-      setToken(storedToken);
-      setUser({ email: storedEmail });
+    if (storedToken && storedUser) {
+      try {
+        setToken(storedToken);
+        setUser(JSON.parse(storedUser));
+      } catch (error) {
+        console.error("Failed to parse stored user data", error);
+        localStorage.removeItem('joblelo_token');
+        localStorage.removeItem('joblelo_user');
+      }
     }
     
     setLoading(false);
@@ -28,7 +34,8 @@ export const AuthProvider = ({ children }) => {
     setUser(userData);
     setToken(authToken);
     localStorage.setItem('joblelo_token', authToken);
-    localStorage.setItem('joblelo_user_email', userData.email);
+    // Store full user object to persist ID and Role
+    localStorage.setItem('joblelo_user', JSON.stringify(userData));
   };
 
   // Logout function
@@ -36,7 +43,7 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setToken(null);
     localStorage.removeItem('joblelo_token');
-    localStorage.removeItem('joblelo_user_email');
+    localStorage.removeItem('joblelo_user');
     navigate('/login');
   };
 
