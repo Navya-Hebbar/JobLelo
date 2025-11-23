@@ -41,26 +41,45 @@ const request = async (endpoint, options = {}) => {
       ...options,
     });
 
-    const data = await res.json();
+    // Parse JSON only if response has content
+    let data;
+    try {
+      const text = await res.text();
+      data = text ? JSON.parse(text) : {};
+    } catch (parseError) {
+      data = { error: 'Invalid response from server' };
+    }
     
-    // Handle authentication errors
+    // Handle authentication errors - only redirect if it's actually an auth issue
     if (res.status === 401 || res.status === 403) {
-      // Only clear and redirect if we have a token that is now invalid
-      if (localStorage.getItem('joblelo_token')) {
+      // Check if it's a real auth error (token expired/invalid) vs other error
+      const isAuthError = data.message?.toLowerCase().includes('token') || 
+                         data.message?.toLowerCase().includes('access denied') ||
+                         data.message?.toLowerCase().includes('login');
+      
+      if (isAuthError && localStorage.getItem('joblelo_token')) {
+        // Only redirect for actual authentication errors
         localStorage.removeItem('joblelo_token');
-        localStorage.removeItem('joblelo_user'); // Updated key
+        localStorage.removeItem('joblelo_user');
         window.location.href = '/login';
+        throw new Error('Session expired. Please login again.');
       }
-      throw new Error('Session expired. Please login again.');
+      // For other 401/403 errors (like API key issues), don't redirect
+      throw new Error(data.error || data.message || data.details || 'Request failed');
     }
     
     if (!res.ok) {
-      throw new Error(data.error || data.message || `HTTP ${res.status}: ${res.statusText}`);
+      throw new Error(data.error || data.message || data.details || `HTTP ${res.status}: ${res.statusText}`);
     }
     
     return data;
   } catch (err) {
     console.error(`API Request failed: ${endpoint}`, err);
+    // Don't throw if it's a redirect (already handled)
+    if (err.message === 'Session expired. Please login again.') {
+      throw err;
+    }
+    // For other errors, throw with the error message
     throw err;
   }
 };
@@ -82,11 +101,16 @@ export const api = {
   },
 
   // AI Chat Service
-  chatWithAI: async (messages) => {
+  chatWithAI: async (messages, language = 'en') => {
     return request('/chat', { 
       method: 'POST', 
-      body: JSON.stringify({ messages }) 
+      body: JSON.stringify({ messages, language }) 
     });
+  },
+
+  // Get supported languages
+  getSupportedLanguages: async () => {
+    return request('/languages');
   },
 
   // Resume Services
@@ -177,6 +201,11 @@ export const api = {
   getLeaderboard: async (params = {}) => {
     const query = new URLSearchParams(params).toString();
     return request(`/coding/leaderboard?${query}`);
+  },
+
+  getUserSubmissions: async (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/coding/submissions?${query}`);
   },
 
   // User Profile Services

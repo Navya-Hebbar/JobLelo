@@ -8,7 +8,7 @@ const teamMembers = [
         collegeName: 'RVCE',
         yearCourse: '3rd year Data Science',
         role: 'Full Stack Developer',
-        contact: 'null',
+        contact: 'nav@gmail.com',
         imagePlaceholder: 'NH',
         primaryColor: 'pink', // Changed from red to pink for softer gradient
         gradient: 'from-pink-500 to-red-600',
@@ -19,7 +19,7 @@ const teamMembers = [
         collegeName: 'Dr. AIT',
         yearCourse: '4th year CSE',
         role: 'Frontend Developer',
-        contact: 'null',
+        contact: 'dishaheb@gmail.com',
         imagePlaceholder: 'DH',
         primaryColor: 'purple',
         gradient: 'from-purple-500 to-indigo-600',

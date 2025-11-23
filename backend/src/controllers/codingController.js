@@ -241,11 +241,60 @@ export const runCode = async (req, res) => {
   }
 };
 
+// Helper function to generate suggestions for failed submissions
+const generateSuggestions = (status, testResults, code, language) => {
+  const suggestions = [];
+  const failedTests = testResults?.filter(r => !r.passed) || [];
+  
+  if (status === 'Runtime Error') {
+    suggestions.push('🔴 **Runtime Error Detected**: Check for null/undefined access, array out of bounds, or type mismatches.');
+    suggestions.push('💡 **Tip**: Add null checks and validate array indices before accessing elements.');
+  } else if (status === 'Time Limit Exceeded') {
+    suggestions.push('⏱️ **Time Limit Exceeded**: Your solution is too slow. Consider optimizing the algorithm.');
+    suggestions.push('💡 **Tip**: Use more efficient data structures (hash maps, sets) or optimize nested loops.');
+  } else if (status === 'Wrong Answer') {
+    if (failedTests.length > 0) {
+      const firstFailed = failedTests[0];
+      suggestions.push(`❌ **Wrong Answer**: Your output doesn't match expected result for test case.`);
+      suggestions.push(`📊 **Test Case**: Input: ${firstFailed.input}, Expected: ${firstFailed.expected}, Got: ${firstFailed.output}`);
+      
+      // Analyze common issues
+      if (firstFailed.output === '[]' || firstFailed.output === 'null' || firstFailed.output === 'undefined') {
+        suggestions.push('💡 **Tip**: Check if you\'re returning the correct value. Verify edge cases (empty arrays, single elements).');
+      } else if (firstFailed.expected && firstFailed.output && 
+                 JSON.stringify(firstFailed.expected) !== JSON.stringify(firstFailed.output)) {
+        suggestions.push('💡 **Tip**: Verify your logic handles all edge cases. Consider using a debugger or adding console logs.');
+      }
+    }
+  }
+  
+  // Language-specific suggestions
+  if (language === 'javascript') {
+    suggestions.push('🔧 **JavaScript Tip**: Ensure you\'re using correct comparison operators (=== vs ==) and handling async operations properly.');
+  } else if (language === 'python') {
+    suggestions.push('🔧 **Python Tip**: Check indentation, list indexing, and ensure you\'re using the correct data types.');
+  } else if (language === 'cpp') {
+    suggestions.push('🔧 **C++ Tip**: Verify memory management, pointer usage, and include necessary headers.');
+  } else if (language === 'java') {
+    suggestions.push('🔧 **Java Tip**: Check class structure, method signatures, and ensure proper return types.');
+  }
+  
+  // General suggestions
+  if (failedTests.length > 0) {
+    suggestions.push('📚 **General Advice**: Review the problem statement carefully. Test your solution with the provided examples manually.');
+    suggestions.push('🎯 **Next Steps**: Try to identify the pattern in failed test cases. Consider edge cases like empty inputs, single elements, or large numbers.');
+  }
+  
+  return suggestions;
+};
+
 // Submit solution
 export const submitSolution = async (req, res) => {
   try {
     const { 
-      problemId, 
+      problemId,
+      problemTitle,
+      difficulty,
       code, 
       language, 
       testResults,
@@ -285,19 +334,32 @@ export const submitSolution = async (req, res) => {
     } else if (executionTime > 5000) {
       status = 'Time Limit Exceeded';
     }
+    
+    // Generate suggestions for failed submissions
+    const suggestions = allPassed ? [] : generateSuggestions(status, testResults, code, language);
 
     // Calculate points based on difficulty and performance
     let points = 0;
     if (allPassed) {
-      const basePoints = { Easy: 10, Medium: 20, Hard: 30 };
+      const basePoints = { 
+        'Easy': 10, 
+        'Medium': 20, 
+        'Hard': 30,
+        'EASY': 10,
+        'MEDIUM': 20,
+        'HARD': 30
+      };
+      const difficultyKey = difficulty || 'Medium';
+      const basePoint = basePoints[difficultyKey] || basePoints['Medium'] || 10;
       const timeBonus = Math.max(0, 10 - Math.floor(executionTime / 100));
-      points = (basePoints['Medium'] || 10) + timeBonus; // Default to Medium
+      points = basePoint + timeBonus;
     }
 
     // Create submission
     const submission = await Submission.create({
       userId,
       problemId,
+      problemTitle: problemTitle || `Problem ${problemId}`,
       code,
       language,
       testResults: testResults || [],
@@ -305,13 +367,70 @@ export const submitSolution = async (req, res) => {
       passedTests,
       executionTime: executionTime || 0,
       status,
-      points
+      points,
+      suggestions: suggestions // Add suggestions to submission
     });
 
     // Calculate user statistics
     const userSubmissions = await Submission.find({ userId });
     const acceptedSubmissions = userSubmissions.filter(s => s.status === 'Accepted');
     const uniqueProblemsSolved = new Set(acceptedSubmissions.map(s => s.problemId)).size;
+
+    // Calculate streak (consecutive days with at least one accepted submission)
+    let streak = 0;
+    if (status === 'Accepted') {
+      // Get all accepted submissions sorted by date
+      const acceptedByDate = acceptedSubmissions
+        .map(s => ({
+          date: new Date(s.timestamp).toDateString(),
+          timestamp: s.timestamp
+        }))
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+      // Get unique dates
+      const uniqueDates = [...new Set(acceptedByDate.map(s => s.date))];
+      
+      // Calculate consecutive days from today
+      const today = new Date().toDateString();
+      let currentStreak = 0;
+      let checkDate = new Date();
+      
+      for (let i = 0; i < 365; i++) { // Check up to 365 days
+        const dateStr = checkDate.toDateString();
+        if (uniqueDates.includes(dateStr)) {
+          currentStreak++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+          break;
+        }
+      }
+      
+      streak = currentStreak;
+    } else {
+      // If not accepted, get streak from previous submissions
+      const acceptedByDate = acceptedSubmissions
+        .map(s => ({
+          date: new Date(s.timestamp).toDateString(),
+          timestamp: s.timestamp
+        }))
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+      const uniqueDates = [...new Set(acceptedByDate.map(s => s.date))];
+      let currentStreak = 0;
+      let checkDate = new Date();
+      
+      for (let i = 0; i < 365; i++) {
+        const dateStr = checkDate.toDateString();
+        if (uniqueDates.includes(dateStr)) {
+          currentStreak++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+          break;
+        }
+      }
+      
+      streak = currentStreak;
+    }
 
     res.status(200).json({
       success: true,
@@ -321,7 +440,8 @@ export const submitSolution = async (req, res) => {
         passedTests,
         totalTests,
         points,
-        timestamp: submission.timestamp
+        timestamp: submission.timestamp,
+        suggestions: suggestions // Include suggestions in response
       },
       stats: {
         totalSubmissions: userSubmissions.length,
@@ -329,7 +449,8 @@ export const submitSolution = async (req, res) => {
         problemsSolved: uniqueProblemsSolved,
         acceptanceRate: userSubmissions.length > 0 
           ? Math.round((acceptedSubmissions.length / userSubmissions.length) * 100) 
-          : 0
+          : 0,
+        streak: streak
       }
     });
   } catch (err) {
@@ -383,13 +504,16 @@ export const getUserSubmissions = async (req, res) => {
       submissions: submissions.map(s => ({
         id: s._id,
         problemId: s.problemId,
+        problemTitle: s.problemTitle,
         language: s.language,
         status: s.status,
         passedTests: s.passedTests,
         totalTests: s.totalTests,
         executionTime: s.executionTime,
         points: s.points,
-        timestamp: s.timestamp
+        timestamp: s.timestamp,
+        suggestions: s.suggestions || [], // Include suggestions
+        testResults: s.testResults || [] // Include test results for detailed view
       })),
       stats
     });

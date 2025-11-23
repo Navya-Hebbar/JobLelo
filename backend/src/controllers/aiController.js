@@ -1,5 +1,6 @@
 // backend/src/controllers/aiController.js
-import model from '../config/gemini.js';
+import model, { isGeminiAvailable } from '../config/gemini.js';
+import { chatWithSarvam, getLanguageInfo, SUPPORTED_LANGUAGES } from '../config/sarvam.js';
 
 const cleanJSON = (text) => {
   return text.replace(/```json|```/g, '').trim();
@@ -7,7 +8,7 @@ const cleanJSON = (text) => {
 
 const chatWithAI = async (req, res) => {
   try {
-    const { messages, context } = req.body;
+    const { messages, context, language = 'en' } = req.body;
     
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ 
@@ -15,7 +16,47 @@ const chatWithAI = async (req, res) => {
         error: 'Messages array is required' 
       });
     }
-    
+
+    // Check if language is supported and not English - use Sarvam for non-English
+    const langInfo = getLanguageInfo(language);
+    const useSarvam = language !== 'en' && SUPPORTED_LANGUAGES[language];
+
+    console.log(`🔍 Language check: ${language}, useSarvam: ${useSarvam}, supported: ${!!SUPPORTED_LANGUAGES[language]}`);
+
+    if (useSarvam) {
+      // Use Sarvam AI for multilingual support
+      try {
+        console.log(`🌐 Using Sarvam AI for language: ${language}`);
+        const response = await chatWithSarvam(messages, language);
+        
+        console.log(`✅ Sarvam AI response received successfully`);
+        res.json({
+          success: true,
+          message: response,
+          language: language,
+          provider: 'sarvam',
+          timestamp: new Date().toISOString()
+        });
+        return;
+      } catch (sarvamError) {
+        console.error('❌ Sarvam AI error, falling back to Gemini:', sarvamError.message);
+        // Fallback to Gemini if Sarvam fails, but log the error
+        console.warn('⚠️ Falling back to Gemini (English) due to Sarvam error');
+        // Continue to Gemini fallback below
+      }
+    } else {
+      console.log(`📝 Using Gemini for language: ${language === 'en' ? 'English' : 'unsupported language'}`);
+    }
+
+    // Use Gemini for English or as fallback
+    if (!isGeminiAvailable() || !model) {
+      return res.status(503).json({
+        success: false,
+        error: "Gemini AI is not configured. Please add GEMINI_API_KEY to your .env file.",
+        details: "Get your API key from: https://makersuite.google.com/app/apikey"
+      });
+    }
+
     let history = messages.slice(0, -1).map(m => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }]
@@ -44,6 +85,12 @@ const chatWithAI = async (req, res) => {
     const chat = model.startChat({ history });
 
     const lastMessage = messages[messages.length - 1].content;
+    
+    // Add language instruction for multilingual support with Gemini
+    const languageInstruction = language !== 'en' && SUPPORTED_LANGUAGES[language]
+      ? `\n\nIMPORTANT: Respond ONLY in ${getLanguageInfo(language).name}. Do not use English.`
+      : '';
+    
     const systemContext = `You are Joblelo AI, an expert career assistant specializing in:
 - Interview preparation and mock interviews
 - Resume optimization and ATS compatibility
@@ -53,21 +100,54 @@ const chatWithAI = async (req, res) => {
 
 ${context ? `User Context: ${JSON.stringify(context)}` : ''}
 
-Provide helpful, concise, and actionable advice. Be encouraging and professional.`;
+Provide helpful, concise, and actionable advice. Be encouraging and professional.${languageInstruction}`;
 
+    console.log(`💬 Sending message to Gemini (language: ${language})`);
     const result = await chat.sendMessage(`${systemContext}\n\nUser: ${lastMessage}`);
     const response = result.response.text();
+    console.log(`✅ Gemini response received (length: ${response.length})`);
 
     res.json({
       success: true,
       message: response,
+      language: 'en',
+      provider: 'gemini',
       timestamp: new Date().toISOString()
     });
   } catch (error) {
     console.error('Chat error:', error);
+    
+    // Check if it's an API key error - use 503 (Service Unavailable) not 401 (Unauthorized)
+    if (error.message && (error.message.includes('API key') || error.message.includes('API_KEY'))) {
+      return res.status(503).json({
+        success: false,
+        error: "Invalid Gemini API key. Please check your GEMINI_API_KEY in .env file.",
+        details: "Get a valid API key from: https://makersuite.google.com/app/apikey"
+      });
+    }
+    
     res.status(500).json({ 
       success: false, 
-      error: "AI Service temporarily unavailable. Please try again." 
+      error: "AI Service temporarily unavailable. Please try again.",
+      details: error.message
+    });
+  }
+};
+
+// Get supported languages endpoint
+const getSupportedLanguages = async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      languages: Object.values(SUPPORTED_LANGUAGES).map(lang => ({
+        code: lang.code,
+        name: lang.name
+      }))
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch supported languages'
     });
   }
 };
@@ -311,6 +391,7 @@ Format with clear sections and bullet points.`;
 
 export default {
   chatWithAI,
+  getSupportedLanguages,
   analyzeResume,
   matchJobs,
   generateSkillTest,

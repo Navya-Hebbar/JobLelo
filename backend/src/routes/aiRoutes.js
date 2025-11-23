@@ -6,6 +6,7 @@ import authMiddleware from '../middleware/authMiddleware.js';
 const router = express.Router();
 
 router.post('/chat', authMiddleware, aiController.chatWithAI);
+router.get('/languages', authMiddleware, aiController.getSupportedLanguages); // New endpoint for languages
 router.post('/resume/analyze', authMiddleware, aiController.analyzeResume);
 router.post('/jobs/match', authMiddleware, aiController.matchJobs);
 router.post('/skills/generate', authMiddleware, aiController.generateSkillTest);
